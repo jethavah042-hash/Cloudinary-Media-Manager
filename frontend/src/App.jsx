@@ -10,7 +10,7 @@ import AdminImages from './components/admin/AdminImages';
 import AdminAnalytics from './components/admin/AdminAnalytics';
 import AdminSettings from './components/admin/AdminSettings';
 import { uploadApi, authApi } from './services/api';
-import { Image, Calendar, HardDrive, ShieldAlert } from 'lucide-react';
+import { Image, Calendar, HardDrive, ShieldAlert, LogIn } from 'lucide-react';
 
 export default function App() {
   const [images, setImages] = useState([]);
@@ -18,8 +18,12 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
-  // View state: 'user' or 'admin'
-  const [viewMode, setViewMode] = useState('user');
+  // Initialize view mode from current browser URL pathname (/admin or /)
+  const [viewMode, setViewMode] = useState(
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
+      ? 'admin'
+      : 'user'
+  );
   const [adminTab, setAdminTab] = useState('dashboard');
 
   useEffect(() => {
@@ -28,7 +32,26 @@ export default function App() {
       setUser(savedUser);
     }
     fetchImages();
+
+    // Listen for browser back/forward navigation
+    const handlePopState = () => {
+      setViewMode(
+        window.location.pathname.startsWith('/admin') ? 'admin' : 'user'
+      );
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  const navigateToAdmin = () => {
+    setViewMode('admin');
+    window.history.pushState(null, '', '/admin');
+  };
+
+  const navigateToUser = () => {
+    setViewMode('user');
+    window.history.pushState(null, '', '/');
+  };
 
   const fetchImages = async () => {
     setLoading(true);
@@ -65,7 +88,15 @@ export default function App() {
   const handleLogout = () => {
     authApi.logout();
     setUser(null);
-    setViewMode('user');
+    navigateToUser();
+  };
+
+  const handleAuthSuccess = (loggedInUser) => {
+    setUser(loggedInUser);
+    // If logging in as admin and currently on /admin, keep admin view
+    if (loggedInUser.role === 'admin' && window.location.pathname.startsWith('/admin')) {
+      setViewMode('admin');
+    }
   };
 
   // Metrics calculation
@@ -82,24 +113,44 @@ export default function App() {
       ? `${(totalBytes / (1024 * 1024)).toFixed(2)} MB`
       : `${(totalBytes / 1024).toFixed(1)} KB`;
 
-  // Render Admin View
+  // Render Admin View (/admin)
   if (viewMode === 'admin') {
     if (!user || user.role !== 'admin') {
       return (
         <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-6 max-w-sm w-full text-center shadow-sm space-y-3">
-            <ShieldAlert className="w-10 h-10 text-red-600 mx-auto" />
-            <h3 className="text-base font-bold text-gray-900">Access Denied</h3>
-            <p className="text-xs text-gray-500">
-              You must be logged in as an administrator to access the admin panel.
-            </p>
-            <button
-              onClick={() => setViewMode('user')}
-              className="px-4 py-2 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"
-            >
-              Back to Dashboard
-            </button>
+          <div className="bg-white border border-gray-200 rounded-lg p-6 max-w-sm w-full text-center shadow-sm space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mx-auto text-red-600">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Admin Authentication Required</h3>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                You are trying to access <span className="font-mono text-gray-700 font-medium">/admin</span>. Please log in with an administrator account to continue.
+              </p>
+            </div>
+            
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="w-full flex items-center justify-center space-x-1.5 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors shadow-sm"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Log In as Admin</span>
+              </button>
+              <button
+                onClick={navigateToUser}
+                className="w-full py-1.5 px-3 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-medium rounded border border-gray-300 transition-colors"
+              >
+                Back to User Dashboard
+              </button>
+            </div>
           </div>
+
+          <AuthModal
+            isOpen={isAuthOpen}
+            onClose={() => setIsAuthOpen(false)}
+            onAuthSuccess={handleAuthSuccess}
+          />
         </div>
       );
     }
@@ -108,7 +159,7 @@ export default function App() {
       <AdminLayout
         activeTab={adminTab}
         setActiveTab={setAdminTab}
-        onExitAdmin={() => setViewMode('user')}
+        onExitAdmin={navigateToUser}
         user={user}
         onLogout={handleLogout}
       >
@@ -123,7 +174,7 @@ export default function App() {
     );
   }
 
-  // Render User View
+  // Render User View (/)
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-gray-800 flex flex-col font-['Inter',sans-serif]">
       {/* Navbar */}
@@ -131,7 +182,7 @@ export default function App() {
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
         onLogout={handleLogout}
-        onOpenAdmin={() => setViewMode('admin')}
+        onOpenAdmin={navigateToAdmin}
       />
 
       {/* Main Container */}
@@ -205,7 +256,7 @@ export default function App() {
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
-        onAuthSuccess={(loggedInUser) => setUser(loggedInUser)}
+        onAuthSuccess={handleAuthSuccess}
       />
     </div>
   );
