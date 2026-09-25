@@ -33,7 +33,9 @@ const registerUser = async (req, res) => {
     const user = await User.create({
       name,
       email: email.toLowerCase(),
-      password
+      password,
+      role: 'user',
+      isBlocked: false
     });
 
     res.status(201).json({
@@ -43,6 +45,8 @@ const registerUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
+        isBlocked: user.isBlocked,
         token: generateToken(user._id)
       }
     });
@@ -69,7 +73,22 @@ const loginUser = async (req, res) => {
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (user && (await user.matchPassword(password))) {
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    // Check if user is blocked
+    if (user.isBlocked) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been blocked by an administrator'
+      });
+    }
+
+    if (await user.matchPassword(password)) {
       res.json({
         success: true,
         message: 'Login successful',
@@ -77,6 +96,8 @@ const loginUser = async (req, res) => {
           _id: user._id,
           name: user.name,
           email: user.email,
+          role: user.role || 'user',
+          isBlocked: user.isBlocked || false,
           token: generateToken(user._id)
         }
       });

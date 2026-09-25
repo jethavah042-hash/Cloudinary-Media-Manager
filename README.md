@@ -1,17 +1,20 @@
 # Cloudinary Media Manager
 
-A full-stack MERN (MongoDB, Express, React, Node.js) media management application featuring secure image uploads, real-time local previews, image replacements, Cloudinary asset destruction, and MongoDB document synchronization.
+A full-stack MERN (MongoDB, Express, React, Node.js) media management and administrative platform featuring secure image uploads, real-time previews, image replacements, Cloudinary asset destruction, MongoDB document synchronization, and a complete **Role-Based Admin Panel**.
 
 ---
 
 ## 1. Project Overview
 
-**Cloudinary Media Manager** is a complete, production-ready solution for managing image assets in the cloud. Instead of storing large binary blobs in MongoDB or saving files on local server disks, images are streamed directly to **Cloudinary** using Multer. Metadata such as the secure HTTPS URL, Cloudinary `public_id`, image format, dimensions, file size, and timestamps are synced with **MongoDB**.
+**Cloudinary Media Manager** is a production-grade cloud media dashboard and administrative system. Images are streamed directly to **Cloudinary** using Multer with strict validation (5MB maximum, allowed formats: JPG, JPEG, PNG, WEBP). Complete metadata and user attributions are synced with **MongoDB**.
+
+An integrated **Admin Panel** provides superusers with global user management (blocking/unblocking, role changes, user deletion with cascading Cloudinary image destruction), global media moderation, upload analytics, and system settings.
 
 ---
 
 ## 2. Features
 
+### User Features:
 - **Direct Cloudinary Integration**: Stream files directly to Cloudinary storage using `cloudinary` v2 and `multer-storage-cloudinary`.
 - **MongoDB Synchronization**: Stores image references and metadata (`imageUrl`, `cloudinaryPublicId`, format, file size, user reference) with Mongoose.
 - **Complete Image Lifecycle**:
@@ -19,42 +22,65 @@ A full-stack MERN (MongoDB, Express, React, Node.js) media management applicatio
   - **Replace**: Choose new file &rarr; Upload to Cloudinary &rarr; Delete old asset on Cloudinary via `public_id` &rarr; Update MongoDB record.
   - **Delete**: Confirmation modal &rarr; Delete asset from Cloudinary &rarr; Remove document from MongoDB.
   - **Copy URL**: One-click clipboard copy of the direct Cloudinary secure URL.
-- **Strict File Validation**:
-  - Allowed formats: `JPG`, `JPEG`, `PNG`, `WEBP`.
-  - Max file size: `5MB` (both client-side & server-side validation).
-- **Authentication**: JWT-based user authentication (Register & Login) with `bcryptjs` password hashing and protected API route support.
-- **Clean Developer Dashboard**: Minimal, responsive UI built with React, Vite, and Tailwind CSS.
+- **Strict File Validation**: Allowed formats (`JPG`, `JPEG`, `PNG`, `WEBP`) and maximum `5MB` size limit.
+- **Authentication**: JWT-based user authentication (Register & Login) with `bcryptjs` password hashing.
+
+### Admin Panel Features:
+- **Dashboard Overview**: Summary metric cards (Total Users, Total Images, Total Storage in MB, Today's Uploads, Active vs Blocked Users) and recent activity logs.
+- **User Management**:
+  - Search users by name or email.
+  - Filter by role (`user`, `admin`) and status (`active`, `blocked`).
+  - View user profile with all their uploaded images.
+  - Block / Unblock user accounts (blocks immediate login and API access).
+  - Promote or demote user roles (`user` &harr; `admin`).
+  - Delete user accounts with **cascading Cloudinary asset destruction** (destroys all user images on Cloudinary and removes their DB records).
+- **Image Management & Moderation**:
+  - Global media grid across all users with uploader attribution (`populate('uploadedBy')`).
+  - Search by image title or filename.
+  - Filter by format (`JPG`, `PNG`, `WEBP`) and custom date ranges.
+  - Admin image deletion from Cloudinary + MongoDB.
+- **Analytics & Reporting**:
+  - Uploads per day (last 7 days trend chart).
+  - New user registrations over time.
+  - File format distribution breakdown.
+- **System Settings**:
+  - Configurable application name, maximum upload size limit, and allowed MIME formats stored in MongoDB.
 
 ---
 
-## 3. Technology Stack
+## 3. Default Admin Credentials
+
+An initial admin account is automatically seeded into MongoDB on server startup:
+
+- **Email**: `cloudinary@gmail.com`
+- **Password**: `Cloudinary@123`
+- **Role**: `admin`
+
+---
+
+## 4. Technology Stack
 
 ### Frontend:
-- **React.js (v18)** - UI components and state management
-- **Vite** - Build tool and development server
+- **React.js (v18)** - UI components, admin views, state management
+- **Vite** - High-performance build tool and dev server
 - **Axios** - HTTP client with request interceptors for JWT
 - **Tailwind CSS** - Modern, utility-first styling
 - **Lucide React** - Clean icons
 
 ### Backend:
-- **Node.js** - Server-side runtime environment
-- **Express.js** - RESTful API framework
-- **MongoDB** - Document database
-- **Mongoose** - Object Data Modeling (ODM) library
+- **Node.js & Express.js** - RESTful API framework
+- **MongoDB & Mongoose** - Document database & schema validation
 - **Multer & multer-storage-cloudinary** - Multipart form data and storage engine
-- **dotenv** - Environment variable management
+- **jsonwebtoken (JWT)** - Stateless authentication & route protection
+- **bcryptjs** - Password hashing
+- **dotenv & cors** - Configuration & Cross-Origin Resource Sharing
 
 ### Cloud Storage:
 - **Cloudinary** - Scalable cloud media storage and optimization
 
-### Authentication & Security:
-- **JSON Web Tokens (JWT)** - Stateless authentication
-- **bcryptjs** - Password hashing
-- **cors** - Cross-Origin Resource Sharing
-
 ---
 
-## 4. Project Structure
+## 5. Project Structure
 
 ```
 cloudinary-media-manager/
@@ -64,32 +90,43 @@ cloudinary-media-manager/
 │   │   ├── cloudinary.js         # Cloudinary SDK configuration
 │   │   └── db.js                 # MongoDB connection handler
 │   ├── controllers/
+│   │   ├── adminController.js    # Admin dashboard, users, images, analytics, settings
 │   │   ├── authController.js     # User registration and login controllers
 │   │   └── uploadController.js   # Upload, fetch, replace & delete logic
 │   ├── middleware/
-│   │   ├── authMiddleware.js     # JWT verification middleware
+│   │   ├── adminMiddleware.js    # Admin role verification middleware (403 guard)
+│   │   ├── authMiddleware.js     # JWT verification & blocked user check
 │   │   └── upload.js             # Multer Cloudinary storage & 5MB validation
 │   ├── models/
 │   │   ├── Image.js              # Image metadata Mongoose schema
-│   │   └── User.js               # User authentication Mongoose schema
+│   │   ├── Setting.js            # System settings schema
+│   │   └── User.js               # User schema with role ('user' | 'admin') & isBlocked
 │   ├── routes/
+│   │   ├── adminRoutes.js        # Admin endpoints (/api/admin)
 │   │   ├── authRoutes.js         # Auth endpoints (/api/auth)
 │   │   └── uploadRoutes.js       # Media endpoints (/api/upload)
 │   ├── .env.example              # Backend environment template
 │   ├── package.json              # Backend dependencies and scripts
-│   └── server.js                 # Express application entry point
+│   └── server.js                 # Express application & admin seeder
 │
 ├── frontend/
 │   ├── public/                   # Static assets
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── AuthModal.jsx     # Login and Register modal
+│   │   │   ├── admin/            # Admin Panel Subsystem
+│   │   │   │   ├── AdminAnalytics.jsx
+│   │   │   │   ├── AdminDashboard.jsx
+│   │   │   │   ├── AdminImages.jsx
+│   │   │   │   ├── AdminLayout.jsx
+│   │   │   │   ├── AdminSettings.jsx
+│   │   │   │   └── AdminUsers.jsx
+│   │   │   ├── AuthModal.jsx     # Login and Register modal with Admin quick-fill
 │   │   │   ├── ImageGallery.jsx  # Media cards, copy URL, replace & delete modals
 │   │   │   ├── ImageUpload.jsx   # Upload card, preview, and progress bar
-│   │   │   └── Navbar.jsx        # Top navigation header
+│   │   │   └── Navbar.jsx        # Top navigation with Admin Panel link
 │   │   ├── services/
-│   │   │   └── api.js            # Axios service layer
-│   │   ├── App.jsx               # Main dashboard component
+│   │   │   └── api.js            # Axios service layer (uploadApi, adminApi, authApi)
+│   │   ├── App.jsx               # Dashboard and Admin view routing
 │   │   ├── index.css             # Tailwind directives and custom styles
 │   │   └── main.jsx              # React DOM mounting
 │   ├── .env.example              # Frontend environment template
@@ -105,85 +142,72 @@ cloudinary-media-manager/
 
 ---
 
-## 5. Installation
+## 6. Installation & Quick Start
 
-Clone the repository to your local machine:
-
+### 1. Clone the repository:
 ```bash
 git clone https://github.com/jethavah042-hash/cloudinary-media-manager.git
 cd cloudinary-media-manager
 ```
 
-### Install Backend Dependencies:
-```bash
-cd backend
-npm install
-```
+### 2. Configure Environment Variables:
 
-### Install Frontend Dependencies:
-```bash
-cd ../frontend
-npm install
-```
-
----
-
-## 6. Environment Variables
-
-### Backend Configuration (`backend/.env`)
-
-Create a `.env` file in the `backend/` directory based on `backend/.env.example`:
-
+Create `backend/.env` based on `backend/.env.example`:
 ```env
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/cloudinary_mern_db
 JWT_SECRET=your_jwt_secret_key_change_in_production
 
-# Cloudinary Credentials (from your Cloudinary Dashboard)
+# Cloudinary Credentials (from dashboard.cloudinary.com)
 CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 ```
 
-### Frontend Configuration (`frontend/.env`)
-
-Create a `.env` file in the `frontend/` directory based on `frontend/.env.example`:
-
+Create `frontend/.env` based on `frontend/.env.example`:
 ```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
----
-
-## 7. How to Run Backend
-
-Ensure your MongoDB instance is running locally or provide a MongoDB Atlas connection string in `backend/.env`.
-
+### 3. Start the Backend Server:
 ```bash
 cd backend
+npm install
 npm run dev
+# Server will run on http://localhost:5000
 ```
 
-*The server will start at `http://localhost:5000`.*
-
----
-
-## 8. How to Run Frontend
-
-In a separate terminal window:
-
+### 4. Start the Frontend Application:
 ```bash
-cd frontend
+cd ../frontend
+npm install
 npm run dev
+# Application will run on http://localhost:5173
 ```
-
-*The frontend application will start at `http://localhost:5173`.*
 
 ---
 
-## 9. API Endpoints
+## 7. API Endpoints
 
-### Media Endpoints (`/api/upload`)
+### Admin Endpoints (`/api/admin`) — Protected by `protect` + `adminOnly`
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/admin/stats` | Summary statistics (users, images, storage, today's uploads) |
+| `GET` | `/api/admin/users` | List all users with search (`?search=`) and filters (`?role=&status=`) |
+| `GET` | `/api/admin/users/:id` | View specific user details and their uploaded images |
+| `PUT` | `/api/admin/users/:id/block` | Block user account |
+| `PUT` | `/api/admin/users/:id/unblock` | Unblock user account |
+| `PUT` | `/api/admin/users/:id/role` | Change user role (`user` &harr; `admin`) |
+| `DELETE` | `/api/admin/users/:id` | Delete user and destroy all their Cloudinary images |
+| `GET` | `/api/admin/images` | View all images with populated uploader, search & format filters |
+| `GET` | `/api/admin/images/:id` | Get detailed image metadata |
+| `DELETE` | `/api/admin/images/:id` | Delete image from Cloudinary and MongoDB |
+| `GET` | `/api/admin/analytics` | Uploads per day, registrations growth, format breakdown |
+| `GET` | `/api/admin/settings` | Fetch system settings from MongoDB |
+| `PUT` | `/api/admin/settings` | Update system settings in MongoDB |
+
+### User Media Endpoints (`/api/upload`)
 
 | Method | Endpoint | Description | Content-Type / Payload |
 |---|---|---|---|
@@ -203,50 +227,6 @@ npm run dev
 
 ---
 
-## 10. Cloudinary Configuration
-
-1. Create a free account at [Cloudinary](https://cloudinary.com/).
-2. Navigate to your **Cloudinary Dashboard / Console**.
-3. Copy your **Cloud Name**, **API Key**, and **API Secret**.
-4. Paste them into your `backend/.env` file.
-5. Uploaded images will be placed in the `mern-app` folder on Cloudinary.
-
----
-
-## 11. Upload / Replace / Delete Workflow
-
-### Upload Workflow:
-```
-User selects file &rarr; Client validates type & size &rarr; Local preview generated (URL.createObjectURL)
-&rarr; Axios multipart POST &rarr; Multer Cloudinary storage &rarr; Cloudinary secure URL & public_id generated
-&rarr; Metadata saved to MongoDB &rarr; UI renders image in Media Gallery.
-```
-
-### Replace Workflow:
-```
-User clicks "Replace" on card &rarr; Selects replacement file &rarr; PUT request sent with new file
-&rarr; New image uploaded to Cloudinary &rarr; Backend invokes cloudinary.uploader.destroy(oldPublicId)
-&rarr; MongoDB document updated with new URL and public_id &rarr; UI updates state.
-```
-
-### Delete Workflow:
-```
-User clicks "Delete" &rarr; Confirmation modal appears &rarr; DELETE request sent
-&rarr; Backend invokes cloudinary.uploader.destroy(publicId) &rarr; MongoDB document deleted
-&rarr; UI removes card from gallery.
-```
-
----
-
-## 12. Future Improvements
-
-- **Bulk / Multi-image uploads**: Support uploading multiple images simultaneously.
-- **Image Transformation Presets**: On-the-fly thumbnail resizing, cropping, and background removal via Cloudinary transformation URLs.
-- **Folder / Tag Management**: Organize media items into customizable folders and tags.
-- **Pagination & Search**: Paginated media grid with search by title or date range.
-
----
-
-## License
+## 8. License
 
 This project is open-source and available under the [ISC License](LICENSE).

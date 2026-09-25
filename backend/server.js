@@ -2,12 +2,35 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
+const User = require('./models/User');
 
 // Load environment variables
 dotenv.config();
 
 // Connect to MongoDB
 connectDB();
+
+// Seed initial admin user if not existing
+const seedAdminUser = async () => {
+  try {
+    const adminEmail = 'cloudinary@gmail.com';
+    const existingAdmin = await User.findOne({ email: adminEmail });
+    if (!existingAdmin) {
+      await User.create({
+        name: 'Super Admin',
+        email: adminEmail,
+        password: 'Cloudinary@123',
+        role: 'admin',
+        isBlocked: false
+      });
+      console.log(`[Admin Seed] Default admin created: ${adminEmail} (Password: Cloudinary@123)`);
+    }
+  } catch (err) {
+    console.error('[Admin Seed Error]:', err.message);
+  }
+};
+
+seedAdminUser();
 
 const app = express();
 
@@ -34,6 +57,7 @@ app.get('/api/health', (req, res) => {
 // Mount Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 // 404 handler for undefined routes
 app.use((req, res, next) => {
@@ -60,6 +84,7 @@ app.listen(PORT, () => {
   console.log(`========================================`);
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Cloudinary API ready at /api/upload`);
+  console.log(`Admin API ready at /api/admin`);
   console.log(`========================================`);
 });
 

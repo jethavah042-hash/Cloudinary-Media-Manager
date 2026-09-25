@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Shield } from 'lucide-react';
 import { authApi } from '../services/api';
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
@@ -35,6 +35,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFillAdmin = () => {
+    setIsRegister(false);
+    setEmail('cloudinary@gmail.com');
+    setPassword('Cloudinary@123');
   };
 
   return (
@@ -119,14 +125,24 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           </button>
         </form>
 
-        <div className="mt-3 pt-3 border-t border-gray-100 text-center">
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+          <button
+            type="button"
+            onClick={handleFillAdmin}
+            className="flex items-center space-x-1 text-blue-600 hover:underline font-medium"
+            title="Auto-fill default Admin credentials"
+          >
+            <Shield className="w-3 h-3" />
+            <span>Fill Admin</span>
+          </button>
+
           <button
             type="button"
             onClick={() => {
               setIsRegister(!isRegister);
               setError(null);
             }}
-            className="text-xs text-blue-600 hover:underline"
+            className="text-gray-500 hover:text-gray-800"
           >
             {isRegister
               ? 'Already have an account? Login'

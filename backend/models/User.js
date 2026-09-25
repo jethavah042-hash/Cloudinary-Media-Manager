@@ -20,6 +20,15 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Please provide a password'],
       minlength: 6
     },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user'
+    },
+    isBlocked: {
+      type: Boolean,
+      default: false
+    },
     avatarUrl: {
       type: String,
       default: ''

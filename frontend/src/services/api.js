@@ -19,7 +19,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// API Service Methods
+// User Upload API Service Methods
 export const uploadApi = {
   // Upload a new image
   upload: async (file, metadata = {}, onProgress = null) => {
@@ -102,6 +102,79 @@ export const uploadApi = {
   delete: async (idOrPublicId) => {
     const encodedId = encodeURIComponent(idOrPublicId);
     const response = await api.delete(`/upload/${encodedId}`);
+    return response.data;
+  },
+};
+
+// Admin API Services
+export const adminApi = {
+  // Get dashboard statistics
+  getStats: async () => {
+    const response = await api.get('/admin/stats');
+    return response.data;
+  },
+
+  // User management
+  getUsers: async (params = {}) => {
+    const response = await api.get('/admin/users', { params });
+    return response.data;
+  },
+
+  getUserById: async (id) => {
+    const response = await api.get(`/admin/users/${id}`);
+    return response.data;
+  },
+
+  blockUser: async (id) => {
+    const response = await api.put(`/admin/users/${id}/block`);
+    return response.data;
+  },
+
+  unblockUser: async (id) => {
+    const response = await api.put(`/admin/users/${id}/unblock`);
+    return response.data;
+  },
+
+  changeRole: async (id, role) => {
+    const response = await api.put(`/admin/users/${id}/role`, { role });
+    return response.data;
+  },
+
+  deleteUser: async (id) => {
+    const response = await api.delete(`/admin/users/${id}`);
+    return response.data;
+  },
+
+  // Image management
+  getImages: async (params = {}) => {
+    const response = await api.get('/admin/images', { params });
+    return response.data;
+  },
+
+  getImageById: async (id) => {
+    const response = await api.get(`/admin/images/${id}`);
+    return response.data;
+  },
+
+  deleteImage: async (id) => {
+    const response = await api.delete(`/admin/images/${id}`);
+    return response.data;
+  },
+
+  // Analytics
+  getAnalytics: async () => {
+    const response = await api.get('/admin/analytics');
+    return response.data;
+  },
+
+  // Settings
+  getSettings: async () => {
+    const response = await api.get('/admin/settings');
+    return response.data;
+  },
+
+  updateSettings: async (settings) => {
+    const response = await api.put('/admin/settings', settings);
     return response.data;
   },
 };
