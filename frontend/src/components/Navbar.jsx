@@ -1,0 +1,50 @@
+import React from 'react';
+import { Cloud, LogOut, LogIn, User } from 'lucide-react';
+
+export default function Navbar({ user, onOpenAuth, onLogout }) {
+  return (
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        {/* Left: Simple Project Title & Logo */}
+        <div className="flex items-center space-x-2.5">
+          <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white">
+            <Cloud className="w-4 h-4" />
+          </div>
+          <span className="font-semibold text-gray-900 text-sm sm:text-base tracking-tight">
+            Cloudinary Media Manager
+          </span>
+        </div>
+
+        {/* Right: Auth Information / Actions */}
+        <div className="flex items-center space-x-3">
+          {user ? (
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-1.5 text-xs text-gray-700 bg-gray-100 px-2.5 py-1 rounded border border-gray-200">
+                <User className="w-3.5 h-3.5 text-gray-500" />
+                <span className="font-medium max-w-[140px] truncate">
+                  {user.name || user.email}
+                </span>
+              </div>
+              <button
+                onClick={onLogout}
+                className="flex items-center space-x-1 text-xs text-gray-600 hover:text-red-600 hover:bg-gray-100 px-2.5 py-1 rounded border border-gray-200 transition-colors"
+                title="Log out"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onOpenAuth}
+              className="flex items-center space-x-1.5 text-xs font-medium text-gray-700 hover:text-blue-600 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded border border-gray-300 transition-colors"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Login / Register</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
