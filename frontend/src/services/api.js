@@ -19,6 +19,21 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Response interceptor to handle token expiry / blocked account (401 / 403)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && (error.response.status === 401 || (error.response.status === 403 && error.response.data?.message?.includes('blocked')))) {
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // User Upload API Service Methods
 export const uploadApi = {
   // Upload a new image
@@ -46,7 +61,7 @@ export const uploadApi = {
     return response.data;
   },
 
-  // Fetch all images
+  // Fetch all images for current authenticated user
   getAll: async () => {
     const response = await api.get('/upload');
     return response.data;
@@ -181,21 +196,19 @@ export const adminApi = {
 
 // Authentication Services
 export const authApi = {
-  login: async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
-    if (response.data.user?.token) {
-      localStorage.setItem('token', response.data.user.token);
+  // Login supporting user and admin types
+  login: async (email, password, loginType = 'user') => {
+    const response = await api.post('/auth/login', { email, password, loginType });
+    if (response.data.token && response.data.user) {
+      localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response.data;
   },
 
+  // Public user registration
   register: async (name, email, password) => {
     const response = await api.post('/auth/register', { name, email, password });
-    if (response.data.user?.token) {
-      localStorage.setItem('token', response.data.user.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-    }
     return response.data;
   },
 

@@ -1,12 +1,11 @@
 const cloudinary = require('../config/cloudinary');
 const Image = require('../models/Image');
 
-// @desc    Upload an image to Cloudinary & save to MongoDB
+// @desc    Upload an image to Cloudinary & save to MongoDB (associated with logged in user)
 // @route   POST /api/upload
-// @access  Public / Protected (supports authenticated user or guest)
+// @access  Private
 const uploadImage = async (req, res) => {
   try {
-    // Check if file was uploaded by multer
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -14,9 +13,6 @@ const uploadImage = async (req, res) => {
       });
     }
 
-    // req.file is populated by multer-storage-cloudinary
-    // req.file.path contains the secure Cloudinary URL
-    // req.file.filename contains the Cloudinary public_id
     const imageUrl = req.file.path || req.file.secure_url;
     const cloudinaryPublicId = req.file.filename || req.file.public_id;
     const { title, description } = req.body;
@@ -28,7 +24,7 @@ const uploadImage = async (req, res) => {
       });
     }
 
-    // Save image metadata in MongoDB
+    // Save image associated with authenticated user
     const image = await Image.create({
       title: title || req.file.originalname || 'Uploaded Image',
       description: description || '',
@@ -36,7 +32,7 @@ const uploadImage = async (req, res) => {
       cloudinaryPublicId: cloudinaryPublicId,
       format: req.file.mimetype || req.file.format,
       size: req.file.size || req.file.bytes,
-      uploadedBy: req.user ? req.user._id : null
+      uploadedBy: req.user._id
     });
 
     return res.status(201).json({
@@ -55,12 +51,16 @@ const uploadImage = async (req, res) => {
   }
 };
 
-// @desc    Get all uploaded images
+// @desc    Get only images uploaded by the currently authenticated user
 // @route   GET /api/upload
-// @access  Public
+// @access  Private
 const getAllImages = async (req, res) => {
   try {
-    const images = await Image.find().sort({ createdAt: -1 }).populate('uploadedBy', 'name email');
+    // Return only images belonging to the authenticated user
+    const images = await Image.find({ uploadedBy: req.user._id })
+      .sort({ createdAt: -1 })
+      .populate('uploadedBy', 'name email');
+
     return res.json({
       success: true,
       count: images.length,
@@ -74,9 +74,9 @@ const getAllImages = async (req, res) => {
   }
 };
 
-// @desc    Get single image by ID
+// @desc    Get single image by ID (only if owned by user or if admin)
 // @route   GET /api/upload/:id
-// @access  Public
+// @access  Private
 const getImageById = async (req, res) => {
   try {
     const image = await Image.findById(req.params.id);
@@ -86,6 +86,15 @@ const getImageById = async (req, res) => {
         message: 'Image not found'
       });
     }
+
+    // Check ownership
+    if (image.uploadedBy && !image.uploadedBy.equals(req.user._id) && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to access this resource.'
+      });
+    }
+
     return res.json({
       success: true,
       image
@@ -98,14 +107,12 @@ const getImageById = async (req, res) => {
   }
 };
 
-// @desc    Replace / Update existing image
+// @desc    Replace / Update user's own image
 // @route   PUT /api/upload/:id
-// @access  Public / Protected
+// @access  Private
 const replaceImage = async (req, res) => {
   try {
     const imageId = req.params.id;
-
-    // Find the existing image document in MongoDB
     const existingImage = await Image.findById(imageId);
     if (!existingImage) {
       return res.status(404).json({
@@ -114,9 +121,16 @@ const replaceImage = async (req, res) => {
       });
     }
 
-    // Check if a new file is uploaded
+    // Check ownership
+    if (existingImage.uploadedBy && !existingImage.uploadedBy.equals(req.user._id) && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to update this resource.'
+      });
+    }
+
+    // If updating only metadata
     if (!req.file) {
-      // If only title or description are being updated
       if (req.body.title) existingImage.title = req.body.title;
       if (req.body.description !== undefined) existingImage.description = req.body.description;
       await existingImage.save();
@@ -128,22 +142,21 @@ const replaceImage = async (req, res) => {
       });
     }
 
-    // A new file was uploaded to Cloudinary by multer middleware
+    // New file uploaded to Cloudinary
     const newImageUrl = req.file.path || req.file.secure_url;
     const newPublicId = req.file.filename || req.file.public_id;
     const oldPublicId = existingImage.cloudinaryPublicId;
 
-    // Delete the old image from Cloudinary
+    // Delete old image from Cloudinary
     if (oldPublicId) {
       try {
         await cloudinary.uploader.destroy(oldPublicId);
-        console.log(`[Cloudinary] Old image ${oldPublicId} deleted successfully`);
+        console.log(`[Cloudinary] Old image ${oldPublicId} destroyed`);
       } catch (cloudErr) {
         console.warn(`[Cloudinary Warning] Failed to delete old image ${oldPublicId}:`, cloudErr.message);
       }
     }
 
-    // Update MongoDB document with new image details
     existingImage.imageUrl = newImageUrl;
     existingImage.cloudinaryPublicId = newPublicId;
     if (req.body.title) existingImage.title = req.body.title;
@@ -169,9 +182,9 @@ const replaceImage = async (req, res) => {
   }
 };
 
-// @desc    Delete image by MongoDB ID or Cloudinary Public ID
+// @desc    Delete user's own image (destroys from Cloudinary & deletes from MongoDB)
 // @route   DELETE /api/upload/:id
-// @access  Public / Protected
+// @access  Private
 const deleteImage = async (req, res) => {
   try {
     const identifier = req.params.id;
@@ -179,18 +192,16 @@ const deleteImage = async (req, res) => {
     if (!identifier) {
       return res.status(400).json({
         success: false,
-        message: 'Public ID or Image ID is required for deletion'
+        message: 'Image ID or Public ID is required for deletion'
       });
     }
 
-    // Try finding image by MongoDB ObjectId first, or by cloudinaryPublicId
     let imageDoc = null;
     if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
       imageDoc = await Image.findById(identifier);
     }
 
     if (!imageDoc) {
-      // Find by exact or decoded public_id
       imageDoc = await Image.findOne({
         $or: [
           { cloudinaryPublicId: identifier },
@@ -199,13 +210,27 @@ const deleteImage = async (req, res) => {
       });
     }
 
-    const publicIdToDelete = imageDoc ? imageDoc.cloudinaryPublicId : identifier;
+    if (!imageDoc) {
+      return res.status(404).json({
+        success: false,
+        message: 'Image not found'
+      });
+    }
 
-    // Delete image from Cloudinary using public_id
+    // Check ownership
+    if (imageDoc.uploadedBy && !imageDoc.uploadedBy.equals(req.user._id) && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to delete this resource.'
+      });
+    }
+
+    const publicIdToDelete = imageDoc.cloudinaryPublicId;
+
+    // Delete from Cloudinary
     let cloudinaryResult;
     try {
       cloudinaryResult = await cloudinary.uploader.destroy(publicIdToDelete);
-      console.log(`[Cloudinary Delete Result]:`, cloudinaryResult);
     } catch (cloudErr) {
       console.error(`[Cloudinary Destroy Error]:`, cloudErr);
       return res.status(500).json({
@@ -214,18 +239,8 @@ const deleteImage = async (req, res) => {
       });
     }
 
-    // Remove document from MongoDB if it exists
-    if (imageDoc) {
-      await Image.findByIdAndDelete(imageDoc._id);
-    } else {
-      // Also try deleting by public_id just in case
-      await Image.findOneAndDelete({
-        $or: [
-          { cloudinaryPublicId: identifier },
-          { cloudinaryPublicId: decodeURIComponent(identifier) }
-        ]
-      });
-    }
+    // Remove from MongoDB
+    await Image.findByIdAndDelete(imageDoc._id);
 
     return res.json({
       success: true,
