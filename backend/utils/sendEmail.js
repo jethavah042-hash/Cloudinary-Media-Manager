@@ -16,6 +16,9 @@ const sendEmail = async ({ to, subject, html, text }) => {
   // Create transporter for Gmail
   const transporter = nodemailer.createTransport({
     service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
       user: user.trim(),
       pass: pass.trim().replace(/\s+/g, '') // remove spaces from Gmail app password if any
