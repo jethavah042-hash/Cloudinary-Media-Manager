@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import LoginPage from './components/auth/LoginPage';
 import RegisterPage from './components/auth/RegisterPage';
+import ForgotPassword from './components/auth/ForgotPassword';
+import VerifyOtp from './components/auth/VerifyOtp';
+import ResetPassword from './components/auth/ResetPassword';
 import UserDashboard from './components/user/UserDashboard';
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -19,6 +22,8 @@ export default function App() {
   );
   const [adminTab, setAdminTab] = useState('dashboard');
   const [regSuccessMessage, setRegSuccessMessage] = useState(null);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
 
   // Sync state with browser location and load persisted auth on mount
   useEffect(() => {
@@ -60,6 +65,27 @@ export default function App() {
     navigate('/login');
   };
 
+  // Handle forgot password OTP sent
+  const handleOtpSent = (email) => {
+    setResetEmail(email);
+    navigate('/verify-otp');
+  };
+
+  // Handle OTP verified successfully
+  const handleOtpVerified = (email, token) => {
+    setResetEmail(email);
+    setResetToken(token);
+    navigate('/reset-password');
+  };
+
+  // Handle password reset complete
+  const handleResetSuccess = (msg) => {
+    setResetEmail('');
+    setResetToken('');
+    setRegSuccessMessage(msg);
+    navigate('/login');
+  };
+
   // Handle logout
   const handleLogout = () => {
     authApi.logout();
@@ -75,7 +101,7 @@ export default function App() {
     );
   }
 
-  // 1. Unauthenticated routes: /register and /login
+  // 1. Unauthenticated routes: /register, /forgot-password, /verify-otp, /reset-password, /login
   if (!user) {
     if (currentPath === '/register') {
       return (
@@ -86,11 +112,43 @@ export default function App() {
       );
     }
 
+    if (currentPath === '/forgot-password') {
+      return (
+        <ForgotPassword
+          onNavigateToLogin={() => navigate('/login')}
+          onOtpSent={handleOtpSent}
+        />
+      );
+    }
+
+    if (currentPath === '/verify-otp') {
+      return (
+        <VerifyOtp
+          email={resetEmail}
+          onNavigateToLogin={() => navigate('/login')}
+          onNavigateBack={() => navigate('/forgot-password')}
+          onOtpVerified={handleOtpVerified}
+        />
+      );
+    }
+
+    if (currentPath === '/reset-password') {
+      return (
+        <ResetPassword
+          email={resetEmail}
+          resetToken={resetToken}
+          onNavigateToLogin={() => navigate('/login')}
+          onResetSuccess={handleResetSuccess}
+        />
+      );
+    }
+
     // Default unauthenticated view is /login
     return (
       <LoginPage
         onLoginSuccess={handleLoginSuccess}
         onNavigateToRegister={() => navigate('/register')}
+        onNavigateToForgotPassword={() => navigate('/forgot-password')}
         initialMessage={regSuccessMessage}
       />
     );

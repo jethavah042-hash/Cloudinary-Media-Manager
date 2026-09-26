@@ -226,6 +226,32 @@ export const authApi = {
     const response = await api.get('/auth/me');
     return response.data;
   },
+
+  // Forgot / Reset Password flow
+  forgotPassword: async (email) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  verifyOTP: async (email, otp) => {
+    const response = await api.post('/auth/verify-otp', { email, otp });
+    return response.data;
+  },
+
+  resendOTP: async (email) => {
+    const response = await api.post('/auth/resend-otp', { email });
+    return response.data;
+  },
+
+  resetPassword: async (email, resetToken, newPassword, confirmPassword) => {
+    const response = await api.post('/auth/reset-password', {
+      email,
+      resetToken,
+      newPassword,
+      confirmPassword,
+    });
+    return response.data;
+  },
 };
 
 export default api;

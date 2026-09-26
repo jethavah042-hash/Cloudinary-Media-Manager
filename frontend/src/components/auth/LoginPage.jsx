@@ -11,7 +11,12 @@ import {
 } from 'lucide-react';
 import { authApi } from '../../services/api';
 
-export default function LoginPage({ onLoginSuccess, onNavigateToRegister, initialMessage }) {
+export default function LoginPage({
+  onLoginSuccess,
+  onNavigateToRegister,
+  onNavigateToForgotPassword,
+  initialMessage
+}) {
   const [loginType, setLoginType] = useState('user'); // 'user' | 'admin'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -134,9 +139,20 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister, initia
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
-              {loginType === 'admin' ? 'Admin Password' : 'Password'}
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-gray-700">
+                {loginType === 'admin' ? 'Admin Password' : 'Password'}
+              </label>
+              {onNavigateToForgotPassword && (
+                <button
+                  type="button"
+                  onClick={onNavigateToForgotPassword}
+                  className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
             <div className="relative">
               <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
               <input

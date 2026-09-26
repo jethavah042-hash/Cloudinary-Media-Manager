@@ -36,6 +36,30 @@ const userSchema = new mongoose.Schema(
     avatarPublicId: {
       type: String,
       default: ''
+    },
+    resetPasswordOtp: {
+      type: String,
+      default: null
+    },
+    resetPasswordOtpExpires: {
+      type: Date,
+      default: null
+    },
+    resetPasswordOtpAttempts: {
+      type: Number,
+      default: 0
+    },
+    resetPasswordOtpLastSent: {
+      type: Date,
+      default: null
+    },
+    resetPasswordToken: {
+      type: String,
+      default: null
+    },
+    resetPasswordTokenExpires: {
+      type: Date,
+      default: null
     }
   },
   {
